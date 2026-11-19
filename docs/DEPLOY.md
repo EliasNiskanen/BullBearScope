@@ -1,3 +1,7 @@
+> **Note:** the GitHub Actions workflows (CI, deploy, scheduled ingest) were removed when
+> the live site was taken down. To redeploy automatically, restore them from the Git history
+> (`git log -- .github/workflows`).
+
 # Deploying
 
 The app is two Docker images: the FastAPI backend and the React frontend
