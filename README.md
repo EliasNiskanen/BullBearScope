@@ -6,11 +6,8 @@
 
 **Watch the bulls and the bears.** A full-stack crypto market tracker, built to cover US stocks too.
 
-[**bullbearscope.com**](https://bullbearscope.com) ·
-[API docs](https://market-backend-u7emkto2ja-lz.a.run.app/docs) ·
-[How it's built](#architecture)
+[How it's built](#architecture) · [Run it locally](#run-locally)
 
-[![CI](https://github.com/EliasNiskanen/BullBearScope/actions/workflows/ci.yml/badge.svg)](https://github.com/EliasNiskanen/BullBearScope/actions/workflows/ci.yml)
 ![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
@@ -20,6 +17,11 @@
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?logo=cloudflare&logoColor=white)
 
 </div>
+
+> **The live site is offline.** BullBearScope ran at bullbearscope.com
+> (Cloudflare + Google Cloud Run) and has been taken down to save hosting
+> costs. Everything below still runs locally with `docker compose up`, and the
+> deploy scripts in `deploy/` can bring it back up.
 
 ![BullBearScope front page in All mode: a live headline about the day's biggest move, search, a ticker ribbon and crypto movers and major coins](docs/images/all-dark.png)
 
@@ -144,7 +146,7 @@ Request flow for `GET /api/crypto/BTC?quote=EUR`:
 | **Ruff** | Linting and formatting, enforced in CI. |
 | **Poetry** | Dependency management with a lock file for reproducible builds. |
 | **Docker** | Multi-stage image: dependencies are resolved with Poetry in a build stage, and the runtime stage contains only the virtualenv and code, running as a non-root user. **Docker Compose** runs the API with PostgreSQL locally. |
-| **GitHub Actions** | CI on every push and pull request: backend lint, tests and migrations against a real PostgreSQL service container (`alembic check` catches model/migration drift); frontend lint, type check, unit tests and Playwright tests; both Docker images built, and the frontend image started and smoke-tested. A second workflow runs the scheduled data ingest. |
+| **GitHub Actions** | CI on every push and pull request: backend lint, tests and migrations against a real PostgreSQL service container (`alembic check` catches model/migration drift); frontend lint, type check, unit tests and Playwright tests; both Docker images built, and the frontend image started and smoke-tested. A second workflow runs the scheduled data ingest. The workflows were removed when the live site was taken down; they are in the Git history. |
 | **React 19 + TypeScript** | The frontend (`frontend/`). Strict TypeScript. UI state that should survive a reload or be shareable (market mode, open chart) lives in the URL; the theme and watchlist live in `localStorage`, read through `useSyncExternalStore`. |
 | **Vite** | Dev server and build. In development it proxies `/api` to the backend, so no CORS setup is needed locally. |
 | **TanStack Query** | All data fetching: caching, request de-duplication (several panels showing the same asset share one request), keeping the previous chart visible while a new interval loads, and no retries on 404/503 so the provider quota isn't wasted. |
@@ -158,7 +160,7 @@ Request flow for `GET /api/crypto/BTC?quote=EUR`:
 | **Oxlint + Prettier** | Linting and formatting for the frontend, enforced in CI. |
 | **Cloudflare Workers (static assets)** | Hosts the frontend at bullbearscope.com on Cloudflare's edge network. Cloudflare builds and deploys `frontend/` on every push to `main` (`wrangler.jsonc`, SPA routing, security headers in `public/_headers`). |
 | **Google Cloud Run** | Hosts the backend. A serverless container that scales to zero, so it costs nothing while idle. Built with **Cloud Build** and stored in **Artifact Registry**. |
-| **Continuous deployment** | After CI passes on `main`, a GitHub Actions workflow deploys the backend to Cloud Run. It signs in with **Workload Identity Federation** (OIDC), so no long-lived Google Cloud key is stored in GitHub. |
+| **Continuous deployment** | After CI passes on `main`, a GitHub Actions workflow deploys the backend to Cloud Run. It signs in with **Workload Identity Federation** (OIDC), so no long-lived Google Cloud key is stored in GitHub. The workflows were removed when the live site was taken down; they are in the Git history. |
 | **nginx** | Alternative frontend container (also Cloud Run). The backend address is written into `config.js` at container start, so one image works in every environment. |
 | **Google Secret Manager** | Holds the database URL, API key and ingest token. The app runs as a dedicated service account that may only read those secrets (least privilege). |
 | **AWS (ECS Express Mode, ECR, RDS, SSM)** | An alternative deployment path, documented in [docs/DEPLOY.md](docs/DEPLOY.md), with GitHub OIDC so no long-lived cloud keys are stored in GitHub. Prepared but not in use. |
@@ -306,17 +308,18 @@ ALPHAVANTAGE_API_KEY=dev ALPHAVANTAGE_BASE_URL=http://127.0.0.1:9100/query \
 BINANCE_BASE_URL=http://127.0.0.1:9100 poetry run uvicorn app.main:app --reload
 ```
 
-The frontend can also run against the deployed backend:
-`API_PROXY_TARGET=https://market-backend-u7emkto2ja-lz.a.run.app npm run dev`.
+The frontend can also run against a deployed backend:
+`API_PROXY_TARGET=https://<your-backend-url> npm run dev`.
 
 ## Deployment
 
-Merging a pull request into `main` ships it:
+*Currently offline (see the note at the top).* While it was live, merging a
+pull request into `main` shipped it:
 
 | Part | Where | How it deploys |
 |---|---|---|
 | Frontend | Cloudflare Workers, [bullbearscope.com](https://bullbearscope.com) | Cloudflare's GitHub integration builds `frontend/` and publishes `dist/` |
-| Backend | Google Cloud Run, `europe-north1` | [`deploy-backend.yml`](.github/workflows/deploy-backend.yml) runs after CI succeeds, signing in with Workload Identity Federation |
+| Backend | Google Cloud Run, `europe-north1` | A GitHub Actions workflow ran after CI succeeded, signing in with Workload Identity Federation (removed with the shutdown; it is in the Git history) |
 | Database | Neon PostgreSQL | Alembic migrations run on container start |
 
 The one-time Google Cloud setup is scripted and safe to re-run:
@@ -354,7 +357,6 @@ frontend/              React + TypeScript app
   deploy/              nginx config and runtime config script
 dev/                   offline fake market data server
 deploy/                GCP scripts, AWS container definition
-.github/workflows/     CI, scheduled ingest, deploy workflows
 docs/                  deployment guide, screenshots
 ```
 
